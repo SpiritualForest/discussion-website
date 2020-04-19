@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block head %}
+	<script>
+		function validateForm() {
+			username = document.getElementById("username").value;
+			password = document.getElementById("password").value;
+
+			if (!username || !password) {
+				return false;
+			}
+		}
+	</script>
+{% endblock %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<form method="post" onsubmit="return validateForm()">
+	<p><input id="username" name="username" placeholder="Username" required></p>
+	<p><input id="password" name="password" placeholder="Password" type="password" required></p>
+	<p><input type="submit" value="Log in"></p>
+</form>
+{% endblock %}

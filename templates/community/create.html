@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+<!-- community creation template -->
+{% block head %}
+	<script type="text/javascript">
+		function validateForm() {
+			var name = document.getElementById("community_name").value;
+			var desc = document.getElementById("description").value;
+			if (!name || !desc) {
+				// Some alert or whatever
+				return false;
+			}
+		}
+	</script>
+{% endblock %}			
+{% block title %}Create community{% endblock %}
+{% block content %}
+	<div class="createCommunity">
+		<form method="post" onsubmit="return validateForm()">
+			<input id="community_name" name="community_name" placeholder="Community name..." required>
+			<input id="description" name="description" placeholder="Description..." required>
+			<input type="submit" value="Create community">
+		</form>
+	</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ name }} - index{% endblock %} <!-- Name should be supplied by the view -->
+{% block content %}
+	{% for post in posts %}
+		<div class="post">
+			<!-- title, author, community name, datetime, etc -->
+		</div>
+	{% endfor %}
+{% endblock %}

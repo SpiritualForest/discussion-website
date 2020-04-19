@@ -1,0 +1,52 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+		<title>{% block title %}{% endblock %}</title>
+		{% block head %}
+			<script type="text/javascript">
+				function communitySelected() {
+					var choice = document.getElementById("communitiesMenu").value;
+					console.log("Choice: " + choice);
+				}
+			</script>
+		{% endblock %}
+	</head>
+	<body>
+	<nav>
+		<figure>
+		<!-- Site logo, always shown -->
+		<a href="{{ url_for('index') }}">
+			<img src="{{ url_for('static', filename='logo.jpg') }}">
+		</a>
+		</figure>
+		<!-- if the user is logged in, display their joined communities dropdown menu, starting with the current page -->
+		{% if g.user %}
+			<div class="communitiesMenu">
+			<!-- TODO: style this bullshit -->
+			<a href="{{ url_for('index') }}">Home</a>
+			<a href="{{ url_for('community.create') }}">Create community</a>
+			{% for community in communities %}
+				<a href="{{ url_for('community.index', name=community.name) }}">{{ community.name }}</a>
+			{% endfor %}
+			</div>
+		{% endif %}
+		<!-- Search bar form. Hide submit button so that the user has to press enter to fill in the form -->
+		<form method="get" action="{{ url_for('index.search') }}">
+			<input placeholder="Search..." id="search" name="value">
+			<input type="submit" style="display: none;">
+		</form>
+		<span style="float: right">
+			{% if g.user %}
+				<!-- Logged in -->
+				<a href="{{ url_for('auth.logout') }}">Log out</a>
+			{% else %}
+				<a href="{{ url_for('auth.register') }}">Register</a>
+				<a href="{{ url_for('auth.login') }}">Log in</a>
+			{% endif %}
+		</span>
+	</nav>
+	<!-- Content stuff now -->
+	{% block content %}{% endblock %}
+	</body>
+</html>

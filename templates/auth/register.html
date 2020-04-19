@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block head %}
+	<script type="text/javascript">
+		function validateForm() {
+			// Validate the registration form before submitting
+			var username = document.getElementById("username");
+			var password = document.getElementById("password");
+			var passwordConfirm = document.getElementById("passwordConfirm");
+			if (!username.value) {
+				// Focus on the element
+				username.focus();
+				return false;
+			}
+			if (password.value != passwordConfirm.value) {
+				// Passwords do not match
+				passwordConfirm.focus();
+				return false;
+			}
+		}
+	</script>
+{% endblock %}
+{% block title %}Register{% endblock %}
+{% block content %}
+<div class="register">
+	<form method="post" onsubmit="return validateForm()">
+		<!-- username -->
+		<p>
+			<label for="username">Username</label>
+			<input id="username" name="username" required>
+		</p>
+		<p>
+			<label for="email">Email</label>
+			<input id="email" name="email" required>
+		</p>
+		<!-- password and passsword confirmation -->
+		<p>
+		<label for="password">Password</label>
+		<input id="password" name="password" type="password" required>
+		</p>
+		<p>
+		<label for="passwordConfirm">Confirm password</label>
+		<input id="passwordConfirm" name="passwordConfirm" type="password" required>
+		</p>
+		<!-- register button -->
+		<p>
+		<input type="submit" value="Register">
+		</p>
+	</form>
+</div>
+{% endblock %}
