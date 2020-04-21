@@ -1,4 +1,4 @@
-from backend.models import User, Community, db
+from backend.models import User, Community, Post, db
 from main import create_app
 
 def setup_test_environment():
@@ -19,6 +19,12 @@ def create_test_community():
     db.session.add(com)
     db.session.commit()
     return com
+
+def create_test_post(community, user):
+    post = Post(user_id=user.id, community_id=community.id, title="Post title!", body="Post body!")
+    db.session.add(post)
+    db.session.commit()
+    return post
 
 def cleanup(*models):
     # Execute <model>.query.delete() on all the given models

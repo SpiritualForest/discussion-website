@@ -78,8 +78,7 @@ def delete_user(user_id):
     # also from the session handler, indicating that the user wants to delete their own account.
     # User.query.filter() will raise exc.InterfaceError if the user_id is some weird object like an empty dict or list
     user_obj = User.query.filter(User.id == user_id).first()
-    relationships = ("owner", "admin", "moderator", "banned_on", "communities")
-    for relationship in relationships:
+    for relationship in user_obj.deletion_relationships:
         # Get all the relationships the user is linked to and clear them.
         relationship_list_obj = getattr(user_obj, relationship)
         relationship_list_obj.clear()

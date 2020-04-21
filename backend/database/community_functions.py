@@ -41,8 +41,7 @@ def delete_community(community_id):
     # first we gotta remove all the community->user relationships
     # if community_id is [], set(), {}, etc, will raise exc.InterfaceError
     community = Community.query.filter(Community.id == community_id).first()
-    relationships = ("users", "owners", "admins", "moderators", "banned_users")
-    for relationship in relationships:
+    for relationship in Community.deletion_relationships:
         # if community is None, will raise AttributeError
         list_obj = getattr(community, relationship)
         list_obj.clear()
@@ -92,9 +91,9 @@ def join(user_id, community_id):
 # if they are a mod, admin, or owner of the group.
 def leave(user_id, community_id):
     # AttributeError if community is None
-    for sublist in ("users", "moderators", "owners", "admins"):
+    for relationship in Community.user_departure_relationships:
         # Remove the user from all other subgroups except bans
-        delete_user(user_id, community_id, sublist)
+        delete_user(user_id, community_id, relationship)
 
 def ban_user(user_id, community_id):
     # This should not be callable if the banning user

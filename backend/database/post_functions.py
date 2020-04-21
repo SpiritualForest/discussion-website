@@ -1,4 +1,4 @@
-from backend.models import User, Community, Post, db
+from backend.models import User, Community, Post, PostVote, db
 from sqlalchemy import exc
 from sqlalchemy.orm import exc as orm_exc
 
@@ -41,3 +41,45 @@ def delete_post(post_id):
         db.session.rollback()
         raise
 # TODO: edit_post(post_id, title, body)
+
+# Karma
+def upvote(user_id, post_id):
+    # user_id is the voter.
+    # we need it to associate the vote with a user so that users
+    # won't be able to just upvote or downvote the post infinitely.
+    post = Post.query.filter(Post.id == post_id).first()
+    user = User.query.filter(User.id == user_id).first()
+    vote = PostVote(user_id=user_id, post_id=post_id, vote_type=True) # True == +1
+    # Add the vote to the user's post votes list
+    user.post_votes.append(vote)
+    post.votes.append(vote)
+    # Increase the post karma and save changes
+    post.karma += 1
+    db.session.add(vote)
+    db.session.commit()
+
+def downvote(user_id, post_id):
+    post = Post.query.filter(Post.id == post_id).first()
+    user = User.query.filter(User.id == user_id).first()
+    vote = PostVote(user_id=user_id, post_id=post_id, vote_type=False) # -1
+    user.post_votes.append(vote)
+    post.votes.append(vote)
+    post.karma -= 1
+    db.session.add(vote)
+    db.session.commit()
+
+def unvote(user_id, post_id):
+    # Remove the relationship between the post karma and the user,
+    # and reset the count according to the karma type it was (upvote or downvote)
+    vote = PostVote.query.filter(PostVote.user_id == user_id, PostVote.post_id == post_id).first()
+    post = vote.post
+    if vote.vote_type:
+        # True vote_type means we need to decrease the post's karma in this case
+        # because the user removed their upvote
+        post.karma -= 1
+    else:
+        # False means we need to increase the karma because the user removed their downvote
+        post.karma += 1
+    # Remove the vote object altogether
+    db.session.delete(vote)
+    db.session.commit()

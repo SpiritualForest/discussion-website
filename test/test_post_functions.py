@@ -1,7 +1,7 @@
 import unittest
 from backend.database import post_functions
-from backend.models import Post, User, Community, db
-from test.helpers import setup_test_environment, create_test_user, create_test_community, cleanup
+from backend.models import Post, User, Community, PostVote, db
+from test.helpers import setup_test_environment, create_test_user, create_test_community, create_test_post, cleanup
 from sqlalchemy import exc
 from sqlalchemy.orm import exc as orm_exc
 
@@ -71,9 +71,7 @@ class TestPostFunctions(unittest.TestCase):
         # First, real user, real community, real post
         user = create_test_user()
         community = create_test_community()
-        post = Post(user_id=user.id, community_id=community.id, title="A Test Post", body="The body of a test post")
-        db.session.add(post)
-        db.session.commit()
+        post = create_test_post(community, user)
         pid = post.id
         # Assert that the post exists
         self.assertIsNotNone(Post.query.filter(Post.id == pid).first())
@@ -90,3 +88,69 @@ class TestPostFunctions(unittest.TestCase):
         self.assertRaises(orm_exc.UnmappedInstanceError, post_functions.delete_post, None)
         self.assertRaises(orm_exc.UnmappedInstanceError, post_functions.delete_post, -1)
         self.assertRaises(exc.InterfaceError, post_functions.delete_post, [])
+
+    #### upvote(post_id) and downvote(post_id) ####
+    def test_upvote(self):
+        user = create_test_user()
+        community = create_test_community()
+        post = create_test_post(community, user)
+        # Upvote it and check the karma
+        post_functions.upvote(user.id, post.id)
+        # Should be 1
+        self.assertEqual(post.karma, 1)
+        vote_obj = PostVote.query.filter(PostVote.user_id == user.id, PostVote.post_id == post.id).first()
+        self.assertIsNotNone(vote_obj)
+        self.assertTrue(vote_obj.vote_type) # True vote_type means upvote
+        self.assertIn(vote_obj, user.post_votes)
+        self.assertIn(vote_obj, post.votes)
+        self.assertEqual(len(user.post_votes), 1)
+        self.assertEqual(len(post.votes), 1)
+        # Cleanup
+        cleanup(Post, PostVote, Community, User)
+
+    def test_downvote(self):
+        user = create_test_user()
+        community = create_test_community()
+        post = create_test_post(community, user)
+        # Start at 0, should be downvoted to -1
+        post_functions.downvote(user.id, post.id)
+        self.assertEqual(post.karma, -1)
+        # Get the vote object
+        vote_obj = PostVote.query.filter(PostVote.user_id == user.id, PostVote.post_id == post.id).first()
+        self.assertIsNotNone(vote_obj)
+        self.assertFalse(vote_obj.vote_type) # Assert that it's a downvote type
+        self.assertIn(vote_obj, user.post_votes)
+        self.assertIn(vote_obj, post.votes)
+        self.assertEqual(len(user.post_votes), 1)
+        self.assertEqual(len(post.votes), 1)
+        # Cleanup
+        cleanup(Post, PostVote, Community, User)
+
+    def test_unvote_with_upvote(self):
+        # Upvote a post and then unvote it, verify that it has been unvoted,
+        # then downvote it and unvote again, to verify again with the opposite function
+        user = create_test_user()
+        community = create_test_community()
+        post = create_test_post(community, user)
+        # Now manually upvote the post and verify that it has been upvoted
+        vote = PostVote(user_id=user.id, post_id=post.id, vote_type=True)
+        user.post_votes.append(vote)
+        post.votes.append(vote)
+        db.session.add(vote)
+        db.session.commit()
+        vote = PostVote.query.filter(PostVote.user_id == user.id, PostVote.post_id == post.id).first()
+        self.assertIsNotNone(vote)
+        self.assertTrue(vote.vote_type)
+        post.karma += 1
+        self.assertEqual(post.karma, 1)
+        self.assertEqual(len(user.post_votes), 1)
+        self.assertEqual(len(post.votes), 1)
+        # Now unvote it and verify it no longer exists and the post's karma is reset to 0
+        post_functions.unvote(user.id, post.id)
+        vote = PostVote.query.filter(PostVote.user_id == user.id, PostVote.post_id == post.id).first()
+        self.assertIsNone(vote)
+        self.assertEqual(post.karma, 0)
+        self.assertEqual(len(user.post_votes), 0)
+        self.assertEqual(len(post.votes), 0)
+        # cleanup
+        cleanup(Post, PostVote, Community, User)
