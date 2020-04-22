@@ -1,50 +1,29 @@
 {% extends "base.html" %}
 
 {% block head %}
-	<script type="text/javascript">
-		function validateForm() {
-			// Validate the registration form before submitting
-			var username = document.getElementById("username");
-			var password = document.getElementById("password");
-			var passwordConfirm = document.getElementById("passwordConfirm");
-			if (!username.value) {
-				// Focus on the element
-				username.focus();
-				return false;
-			}
-			if (password.value != passwordConfirm.value) {
-				// Passwords do not match
-				passwordConfirm.focus();
-				return false;
-			}
-		}
-	</script>
 {% endblock %}
 {% block title %}Register{% endblock %}
 {% block content %}
 <div class="register">
-	<form method="post" onsubmit="return validateForm()">
-		<!-- username -->
+	<form method="post">
+		{{ form.csrf_token }}
 		<p>
-			<label for="username">Username</label>
-			<input id="username" name="username" required>
+			{{ form.username.label }}
+			{{ form.username }}
 		</p>
 		<p>
-			<label for="email">Email</label>
-			<input id="email" name="email" required>
-		</p>
-		<!-- password and passsword confirmation -->
-		<p>
-		<label for="password">Password</label>
-		<input id="password" name="password" type="password" required>
+			{{ form.password.label }}
+			{{ form.password }}
 		</p>
 		<p>
-		<label for="passwordConfirm">Confirm password</label>
-		<input id="passwordConfirm" name="passwordConfirm" type="password" required>
-		</p>
-		<!-- register button -->
+			{{ form.password_confirm.label }}
+			{{ form.password_confirm }}
 		<p>
-		<input type="submit" value="Register">
+			{{ form.email.label }}
+			{{ form.email }}
+		</p>
+		<p>
+			{{ form.submit }}
 		</p>
 	</form>
 </div>

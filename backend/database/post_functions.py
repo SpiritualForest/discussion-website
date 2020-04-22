@@ -40,7 +40,17 @@ def delete_post(post_id):
         # post is None
         db.session.rollback()
         raise
-# TODO: edit_post(post_id, title, body)
+
+def edit_post(post_id, title, body):
+    # Edit an existing post
+    if not title:
+        raise ValueError("title is empty")
+    if not body:
+        raise ValueError("body is empty") 
+    post = Post.query.filter(Post.id == post_id).first()
+    post.title = title # AttributeError if post is None
+    post.body = body # AttributeError if post is None
+    db.session.commit()
 
 # Karma
 def upvote(user_id, post_id):
@@ -49,6 +59,10 @@ def upvote(user_id, post_id):
     # won't be able to just upvote or downvote the post infinitely.
     post = Post.query.filter(Post.id == post_id).first()
     user = User.query.filter(User.id == user_id).first()
+    if user is None:
+        raise ValueError("user doesn't exist")
+    if post is None:
+        raise ValueError("post doesn't exist")
     vote = PostVote(user_id=user_id, post_id=post_id, vote_type=True) # True == +1
     # Add the vote to the user's post votes list
     user.post_votes.append(vote)
@@ -56,24 +70,36 @@ def upvote(user_id, post_id):
     # Increase the post karma and save changes
     post.karma += 1
     db.session.add(vote)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except exc.IntegrityError:
+        db.session.rollback()
+        raise
 
 def downvote(user_id, post_id):
     post = Post.query.filter(Post.id == post_id).first()
     user = User.query.filter(User.id == user_id).first()
+    if user is None:
+        raise ValueError("user doesn't exist")
+    if post is None:
+        raise ValueError("post doesn't exist")
     vote = PostVote(user_id=user_id, post_id=post_id, vote_type=False) # -1
     user.post_votes.append(vote)
     post.votes.append(vote)
     post.karma -= 1
     db.session.add(vote)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except exc.IntegrityError:
+        db.session.rollback()
+        raise
 
 def unvote(user_id, post_id):
     # Remove the relationship between the post karma and the user,
     # and reset the count according to the karma type it was (upvote or downvote)
     vote = PostVote.query.filter(PostVote.user_id == user_id, PostVote.post_id == post_id).first()
     post = vote.post
-    if vote.vote_type:
+    if vote.vote_type is True:
         # True vote_type means we need to decrease the post's karma in this case
         # because the user removed their upvote
         post.karma -= 1

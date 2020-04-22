@@ -1,6 +1,6 @@
 from flask import Blueprint, g, session, redirect, url_for, render_template, request
 from datetime import datetime, timedelta
-from backend.blueprints.session_manager import CSRFToken, session_manager, csrf_manager
+from backend.blueprints.session_manager import session_manager
 from backend.database import community_functions, user_functions
 
 bp = Blueprint("community", __name__)

@@ -71,6 +71,15 @@ def verify_user(username, password):
     verified = argon2.using(**hash_config).verify(password + salt, hashed_password)
     return verified
 
+def get_user_by_name(username):
+    # Get the user object based on <username>
+    user_obj = User.query.filter(User.username == username).first()
+    return user_obj # None if not found
+
+def get_user_by_id(user_id):
+    user_obj = User.query.filter(User.id == user_id).first()
+    return user_obj
+
 def delete_user(user_id):
     # delete a user from the database
     # Since only the authenticated user is able to delete their own account,

@@ -90,6 +90,7 @@ class TestPostFunctions(unittest.TestCase):
         self.assertRaises(exc.InterfaceError, post_functions.delete_post, [])
 
     #### upvote(post_id) and downvote(post_id) ####
+    # TODO: test it with erroneus input
     def test_upvote(self):
         user = create_test_user()
         community = create_test_community()
@@ -127,8 +128,7 @@ class TestPostFunctions(unittest.TestCase):
         cleanup(Post, PostVote, Community, User)
 
     def test_unvote_with_upvote(self):
-        # Upvote a post and then unvote it, verify that it has been unvoted,
-        # then downvote it and unvote again, to verify again with the opposite function
+        # Upvote a post and then unvote it and verify that it has been unvoted
         user = create_test_user()
         community = create_test_community()
         post = create_test_post(community, user)
@@ -136,12 +136,12 @@ class TestPostFunctions(unittest.TestCase):
         vote = PostVote(user_id=user.id, post_id=post.id, vote_type=True)
         user.post_votes.append(vote)
         post.votes.append(vote)
+        post.karma += 1
         db.session.add(vote)
         db.session.commit()
         vote = PostVote.query.filter(PostVote.user_id == user.id, PostVote.post_id == post.id).first()
         self.assertIsNotNone(vote)
         self.assertTrue(vote.vote_type)
-        post.karma += 1
         self.assertEqual(post.karma, 1)
         self.assertEqual(len(user.post_votes), 1)
         self.assertEqual(len(post.votes), 1)
@@ -154,3 +154,73 @@ class TestPostFunctions(unittest.TestCase):
         self.assertEqual(len(post.votes), 0)
         # cleanup
         cleanup(Post, PostVote, Community, User)
+
+    def test_unvote_with_downvote(self):
+        # Downvote a post and then unvote it
+        user = create_test_user()
+        community = create_test_community()
+        post = create_test_post(community, user)
+        vote = PostVote(user_id=user.id, post_id=post.id, vote_type=False) # False means -1
+        user.post_votes.append(vote)
+        post.votes.append(vote)
+        post.karma -= 1
+        db.session.commit()
+        # Now verify
+        vote = PostVote.query.filter(PostVote.user_id == user.id, PostVote.post_id == post.id).first()
+        self.assertIsNotNone(vote)
+        self.assertEqual(post.karma, -1)
+        # Unvote it
+        post_functions.unvote(user.id, post.id)
+        vote = PostVote.query.filter(PostVote.user_id == user.id, PostVote.post_id == post.id).first()
+        self.assertIsNone(vote)
+        self.assertEqual(post.karma, 0)
+        self.assertEqual(len(user.post_votes), 0)
+        self.assertEqual(len(post.votes), 0)
+        # cleanup
+        cleanup(Post, PostVote, Community, User)
+
+    def test_upvote_non_existent_post(self):
+        # Try to upvote a post that doesn't exist
+        user = create_test_user()
+        self.assertRaises(ValueError, post_functions.upvote, user.id, -1)
+        self.assertRaises(ValueError, post_functions.upvote, user.id, None)
+        self.assertRaises(exc.InterfaceError, post_functions.upvote, user.id, [])
+        cleanup(User)
+
+    def test_downvote_non_existent_post(self):
+        user = create_test_user()
+        self.assertRaises(ValueError, post_functions.downvote, user.id, -1)
+        self.assertRaises(ValueError, post_functions.downvote, user.id, None)
+        self.assertRaises(exc.InterfaceError, post_functions.downvote, user.id, [])
+        cleanup(User)
+
+    #### edit_post(post_id, title, body) ####
+
+    def test_edit_post(self):
+        user, community = create_test_user(), create_test_community()
+        post = create_test_post(community, user)
+        # Now edit the post
+        edit_title, edit_body = "Edited title", "Edited body"
+        post_functions.edit_post(post.id, edit_title, edit_body)
+        self.assertEqual(post.title, edit_title)
+        self.assertEqual(post.body, edit_body)
+        # cleanup
+        cleanup(Post, Community, User)
+
+    def test_edit_post_non_existent_post(self):
+        # Try to edit a post that doesn't exist.
+        # We don't need the test community and user for this, because the post shouldn't exist.
+        self.assertRaises(AttributeError, post_functions.edit_post, -1, "title", "body")
+        self.assertRaises(AttributeError, post_functions.edit_post, None, "title", "body")
+        self.assertRaises(exc.InterfaceError, post_functions.edit_post, [], "title", "body")
+
+    def test_edit_post_empty_title_and_body(self):
+        # Edit a post, but supply an empty title and body as parameters.
+        user, community = create_test_user(), create_test_community()
+        post = create_test_post(community, user)
+        # Edit the post, but provide no title and then no body
+        self.assertRaises(ValueError, post_functions.edit_post, post.id, None, "test")
+        self.assertRaises(ValueError, post_functions.edit_post, post.id, "test", None)
+        self.assertRaises(ValueError, post_functions.edit_post, post.id, "", "test")
+        self.assertRaises(ValueError, post_functions.edit_post, post.id, "test", "")
+        cleanup(Post, Community, User)

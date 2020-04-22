@@ -1,70 +1,83 @@
 # This stuff deals with user registration and authentication
 from flask import Blueprint, session, redirect, url_for, render_template, request, g
-from werkzeug.security import generate_password_hash, check_password_hash
-from random import choice # for salt creation
-from string import ascii_letters, punctuation, digits # for salt
-from backend.models import User, db
-from backend.blueprints.session_manager import Session, CSRFToken, session_manager, csrf_manager
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField
+from wtforms.validators import DataRequired, Email
+from backend.database import user_functions
+from backend.blueprints.session_manager import Session, session_manager
+from sqlalchemy import exc # For various database exceptions
 
 bp = Blueprint("auth", __name__)
 
-# TODO: make a REST API for some database functions
-# so that we can use jQuery or some other library
-# to query the database and check for stuff like
-# whether a username is already taken, an email has already been registered with another user,
-# and so forth.
-# Make the HTML form unsubmitable in case the required
-# criteria for registration (unique username, unique email, etc) are not met.
+class UserRegistrationForm(FlaskForm):
+    username = StringField("Username", validators=[DataRequired()])
+    password = PasswordField("Password", validators=[DataRequired()])
+    password_confirm = PasswordField("Confirm password", validators=[DataRequired()])
+    email = StringField("Email", validators=[DataRequired(), Email()])
+    submit = SubmitField("Register")
+
+class UserLoginForm(FlaskForm):
+    username = StringField("Username", validators=[DataRequired()])
+    password = PasswordField("Password", validators=[DataRequired()])
+    submit = SubmitField("Log in")
 
 @bp.route("/register", methods=("GET", "POST"))
 def register():
-    # TODO: more error checks, and do something to inform the user when an error occurs
+    form = UserRegistrationForm()
     if request.method == "GET":
         # display the registration template
-        return render_template("auth/register.html")
+        return render_template("auth/register.html", form=form)
 
     # POST request here
-    username = request.form["username"]
-    password = request.form["password"]
-    email = request.form["email"]
-    if not username or not password or not email:
-        # Error
-        # TODO: some notification to the user
-        return redirect(url_for("index"))
-    userObj = User.query.filter(User.username == username).first()
-    if userObj:
-        # Username already exists
-        return render_template("error.html", error_message="Username already exists in the database")
-    
-    # Proceed to register
-    success = add_user(username, password, email)
-    if not success:
-        return render_template("error.html", error_message="An error occurred when trying to register")
-    
-    # Registration succeeded. 
+    if not form.validate_on_submit():
+        # FIXME: actually do something meaningful here
+        return render_template("error.html", "Form not valid")
+    # If execution reached here, the request is valid, let's register
+    try:
+        # Register the user
+        username = form.username.data
+        password = form.password.data
+        email = form.email.data
+        user_functions.register_user(username, password, email)
+    except ValueError:
+        # Username or password is an empty string
+        return render_template("error.html", error_message="Username or password is empty")
+    except TypeError:
+        # This should never even occur, but the function raises this exception,
+        # so we have to catch it
+        return render_template("error.html", error_message="Password error")
+    except exc.IntegrityError:
+        # Will occur if one of the fields is not unique (exists in the database)
+        # FIXME: REST API and shit for this crap, making it possible to see the error
+        # in real time on the web browser, rather than only after the request.
+        return render_template("error.html", error_message="Username or email already exists")
+    # If execution reached here, the registration was successful
     # Create a session for the user and redirect them to the index page
-    session_obj = Session(userObj.id)
+    user_obj = user_functions.get_user_by_name(username)
+    session_obj = Session(user_obj.id)
     session["session_id"] = session_obj.session_id
-    session_manager.add_token(sesson_obj.session_id, session_obj)
+    session_manager.add_token(session_obj.session_id, session_obj)
     return redirect(url_for("index"))
 
 @bp.route("/login", methods=("GET", "POST"))
 def login():
-    # TODO: more error checking
+    form = UserLoginForm()
     if request.method == "GET":
-        return render_template("auth/login.html")
+        return render_template("auth/login.html", form=form)
 
-    username = request.form["username"]
-    password = request.form["password"]
-
-    userObj = User.query.filter(User.username == username).first()
-    if not userObj:
-        # Not found
-        # TODO: display some error
-        return redirect(url_for("index"))
-    if check_password_hash(userObj.password, password + userObj.salt):
+    if not form.validate_on_submit():
+        return render_template("error.html", error_message="Form not valid")
+    
+    try:
+        username, password = form.username.data, form.password.data
+        verified = user_functions.verify_user(username, password)
+    except (AttributeError, TypeError):
+        # Verification failed due an error
+        return render_template("error.html", error_message="Verification failed")
+    if verified:
         # Success. Create the session cookie and all that shit
-        session_obj = Session(userObj.id)
+        user_obj = user_functions.get_user_by_name(username)
+        session_obj = Session(user_obj.id)
         session["session_id"] = session_obj.session_id
         session_manager.add_token(session_obj.session_id, session_obj)
     return redirect(url_for("index"))
@@ -86,5 +99,5 @@ def get_logged_in_user():
         g.user = None
     else:
         # an active session was found
-        user = User.query(User.id == session_object.user_id).first()
+        user = user_functions.get_user_by_id(session_object.user_id)
         g.user = user # None if not found

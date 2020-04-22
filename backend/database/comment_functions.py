@@ -69,8 +69,8 @@ def upvote(user_id, comment_id):
 def downvote(user_id, post_id):
     comment = Comment.query.filter(Comment.id == post_id).first()
     user = User.query.filter(User.id == user_id).first()
-    vote = CommentKarma(user_id=user_id, comment_id=comment_id, vote_type=False) # -1
-    user.comment_votes.append(karma)
+    vote = CommentVote(user_id=user_id, comment_id=comment_id, vote_type=False) # -1
+    user.comment_votes.append(vote)
     comment.votes.append(vote)
     comment.karma -= 1
     db.session.add(vote)
@@ -79,10 +79,9 @@ def downvote(user_id, post_id):
 def unvote(user_id, comment_id):
     # Remove the relationship between the post karma and the user,
     # and reset the count according to the karma type it was (upvote or downvote)
-    vote = CommentVote.query.fiter(_and(CommentVote.user_id == user_id, CommentVote.comment_id == comment_id)).first()
-    user.comment_votes.remove(vote)
-    comment.votes.remove(comment)
-    if vote.vote_type:
+    vote = CommentVote.query.fiter(CommentVote.user_id == user_id, CommentVote.comment_id == comment_id).first()
+    comment = vote.comment
+    if vote.vote_type is True:
         # True vote_type means we need to decrease the comment's karma in this case
         # because the user removed their upvote
         comment.karma -= 1
